@@ -128,6 +128,20 @@ take([1, 2, 3], 2);           // T определился как number
 take(["a", "b", "c"], 2);     // T определился как string
 ```
 
+### Передача аргумента дженерику (пример с React-атрибутами)
+- Синтаксис дженериков **всегда в угловых скобках**: `SomeType<T>`, `Promise<string>`, `InputHTMLAttributes<HTMLInputElement>`.
+- В записи `InputHTMLAttributes<HTMLInputElement>` мы “заполняем” дженерик `InputHTMLAttributes` конкретным типом элемента (`HTMLInputElement`).
+
+### Где ставим `:` а где `<...>`
+- `:` — **только когда объявляем тип переменной, параметра или результата функции**:
+  - `let title: string = "Новости"`
+  - `function add(a: number, b: number): number { ... }`
+  - `const article: Article = { ... }`
+- `<...>` — **когда передаём тип в дженерик** (у типа/функции/хука и т.п.):
+  - `Array<number>`, `Promise<Article[]>`
+  - `useState<User | null>()`
+  - `InputHTMLAttributes<HTMLInputElement>`
+
 ---
 
 ## 8. Props в React
