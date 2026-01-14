@@ -2,7 +2,7 @@
 
 ---
 
-## Основы: useState и useEffect
+## Основы: useState, useEffect и useRef
 
 Прежде чем говорить о мемоизации, важно понять базовые хуки React.
 
@@ -242,6 +242,274 @@ useEffect(() => {
 
 ---
 
+## useRef — коробка для хранения
+
+### Что это?
+
+Хук для хранения **мутабельного значения**, которое:
+- Сохраняется между рендерами (не сбрасывается)
+- НЕ вызывает ре-рендер при изменении
+
+### Простая аналогия
+
+Представь, что `useRef` — это **коробка с наклейкой**. Ты можешь положить в неё что угодно, достать, поменять — и эта коробка всегда остаётся на месте.
+
+```tsx
+const myBox = useRef(null)  // Создали пустую коробку
+
+myBox.current = 5           // Положили туда число 5
+myBox.current = "привет"    // Заменили на слово "привет"
+console.log(myBox.current)  // Достали — получили "привет"
+```
+
+### Синтаксис
+
+```tsx
+const ref = useRef(initialValue)
+
+ref.current  // Доступ к значению внутри "коробки"
+```
+
+### Зачем нужна эта "коробка"?
+
+В React есть проблема: когда что-то меняется на странице, компонент как бы "пересоздаётся". Все обычные переменные при этом сбрасываются:
+
+```tsx
+function Counter() {
+  let count = 0  // ❌ Сбросится при каждом ре-рендере!
+  
+  return (
+    <button onClick={() => count++}>
+      {count}  {/* Всегда будет 0 */}
+    </button>
+  )
+}
+```
+
+А `useRef` — это коробка, которая **не сбрасывается**:
+
+```tsx
+function Counter() {
+  const countRef = useRef(0)  // ✅ Сохраняется между рендерами
+  
+  // Но! Изменение countRef.current НЕ обновит UI
+  // Для UI нужен useState
+}
+```
+
+---
+
+### Два главных применения useRef
+
+#### 1️⃣ Доступ к DOM-элементам
+
+Самое частое использование — "поймать" элемент на странице:
+
+```tsx
+function TextInput() {
+  const inputRef = useRef(null)  // Шаг 1: создаём пустую коробку
+  
+  const focusInput = () => {
+    inputRef.current.focus()     // Шаг 3: используем элемент
+  }
+  
+  return (
+    <>
+      {/* Шаг 2: React положит элемент в коробку */}
+      <input ref={inputRef} type="text" />
+      <button onClick={focusInput}>Фокус на поле</button>
+    </>
+  )
+}
+```
+
+**Как это работает:**
+1. `useRef(null)` — создаём пустую коробку
+2. `ref={inputRef}` — говорим React: "положи этот элемент в коробку"
+3. `inputRef.current` — достаём элемент и работаем с ним
+
+**Аналогия из жизни:**
+- `useRef(null)` — наклеил на шкаф стикер "Шкаф №1"
+- `ref={inputRef}` — момент, когда клеишь стикер
+- `inputRef.current` — сам шкаф, к которому приклеен стикер
+- `inputRef.current.offsetHeight` — меришь высоту шкафа рулеткой
+
+#### 2️⃣ Хранение значений без ре-рендера
+
+Когда нужно запомнить что-то, но НЕ нужно обновлять UI:
+
+```tsx
+function ScrollTracker() {
+  const lastScrollY = useRef(0)  // Предыдущая позиция скролла
+  
+  useEffect(() => {
+    const onScroll = () => {
+      const currentY = window.scrollY
+      const delta = currentY - lastScrollY.current  // Разница
+      
+      lastScrollY.current = currentY  // Запоминаем новую позицию
+      // ↑ НЕ вызывает ре-рендер! Просто обновляет значение в коробке
+      
+      console.log('Скролл:', delta > 0 ? 'вниз' : 'вверх')
+    }
+    
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  
+  return <div>Скролль страницу</div>
+}
+```
+
+---
+
+### useRef vs useState — в чём разница?
+
+| | `useState` | `useRef` |
+|---|---|---|
+| **При изменении** | Компонент перерисовывается | Ничего не происходит |
+| **Для чего** | Данные, которые показываем на экране | Данные "за кулисами" |
+| **Синтаксис изменения** | `setValue(newValue)` | `ref.current = newValue` |
+
+**Простое правило:**
+- Нужно показать на экране → `useState`
+- Нужно просто запомнить → `useRef`
+
+```tsx
+function Example() {
+  const [count, setCount] = useState(0)    // Показываем на экране
+  const renderCount = useRef(0)            // Просто считаем (не показываем)
+  
+  renderCount.current++  // Считаем рендеры (не вызывает новый рендер)
+  
+  return (
+    <div>
+      <p>Счёт: {count}</p>
+      <p>Рендеров было: {renderCount.current}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  )
+}
+```
+
+---
+
+### useRef vs useMemo — в чём разница?
+
+| | `useRef` | `useMemo` |
+|---|---|---|
+| **Что это** | Коробка для хранения | Калькулятор с кэшем |
+| **Кто меняет значение** | Ты сам (`ref.current = ...`) | React автоматически |
+| **Когда обновляется** | Когда ты напишешь | Когда изменятся зависимости `[a, b]` |
+| **Для чего** | Хранить DOM-элементы, счётчики, флаги | Кэшировать результаты вычислений |
+
+```tsx
+// useRef — ты сам кладёшь и достаёшь
+const myBox = useRef(0)
+myBox.current = 5      // Ты положил
+myBox.current = 10     // Ты заменил
+
+// useMemo — React сам вычисляет когда нужно
+const result = useMemo(() => {
+  return a + b         // React посчитает сам
+}, [a, b])             // И пересчитает только когда a или b изменятся
+```
+
+---
+
+### Примеры использования
+
+#### Измерение размеров элемента
+
+```tsx
+function Header() {
+  const headerRef = useRef(null)
+  const [height, setHeight] = useState(0)
+  
+  useEffect(() => {
+    // Измеряем высоту header'а
+    const h = headerRef.current?.offsetHeight || 0
+    setHeight(h)
+  }, [])
+  
+  return (
+    <header ref={headerRef}>
+      <p>Высота header'а: {height}px</p>
+    </header>
+  )
+}
+```
+
+#### Хранение предыдущего значения
+
+```tsx
+function Counter() {
+  const [count, setCount] = useState(0)
+  const prevCount = useRef(0)
+  
+  useEffect(() => {
+    prevCount.current = count  // Запоминаем после каждого рендера
+  }, [count])
+  
+  return (
+    <div>
+      <p>Сейчас: {count}</p>
+      <p>Было: {prevCount.current}</p>
+      <button onClick={() => setCount(c => c + 1)}>+1</button>
+    </div>
+  )
+}
+```
+
+#### Предотвращение лишних вызовов (throttle/debounce)
+
+```tsx
+function ScrollHandler() {
+  const ticking = useRef(false)  // Флаг "уже обрабатываем"
+  
+  useEffect(() => {
+    const onScroll = () => {
+      if (ticking.current) return  // Если уже обрабатываем — пропускаем
+      
+      ticking.current = true
+      
+      requestAnimationFrame(() => {
+        // Делаем что-то со скроллом
+        console.log('Скролл:', window.scrollY)
+        ticking.current = false  // Готовы к следующему
+      })
+    }
+    
+    window.addEventListener('scroll', onScroll)
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+  
+  return <div>Скролль!</div>
+}
+```
+
+---
+
+### Главное правило
+
+> **`useState`** = что показать на экране (изменение → ре-рендер)
+> 
+> **`useRef`** = что запомнить за кулисами (изменение → ничего не происходит)
+
+### Сводная таблица всех базовых хуков
+
+| Хук | Для чего | При изменении |
+|-----|----------|---------------|
+| `useState` | Данные для отображения | Ре-рендер |
+| `useEffect` | Побочные эффекты (API, таймеры) | — |
+| `useRef` | Хранение без ре-рендера, доступ к DOM | Ничего |
+
+---
+
+
+
+
+
 # Мемоизация — React.memo, useMemo, useCallback
 
 ## Зачем нужна мемоизация?
@@ -472,11 +740,14 @@ useEffect(() => {
 
 ## Сводная таблица
 
-| Инструмент | Тип | Что кэширует | Где используется |
-|------------|-----|--------------|------------------|
-| `React.memo` | HOC | Рендер компонента | Оборачивает компонент |
-| `useMemo` | Hook | Любое значение | Внутри компонента |
-| `useCallback` | Hook | Функцию (сахар от useMemo) | Внутри компонента |
+| Инструмент | Тип | Что делает | При изменении |
+|------------|-----|------------|---------------|
+| `useState` | Hook | Хранит данные для UI | Ре-рендер |
+| `useEffect` | Hook | Побочные эффекты | — |
+| `useRef` | Hook | Хранит значение / DOM-элемент | Ничего |
+| `useMemo` | Hook | Кэширует вычисление | Пересчёт при изменении deps |
+| `useCallback` | Hook | Кэширует функцию | Пересоздание при изменении deps |
+| `React.memo` | HOC | Предотвращает ре-рендер | Ре-рендер при изменении props |
 
 ---
 
@@ -658,6 +929,12 @@ const TodoItem = React.memo(({ todo, onToggle }) => {
 ---
 
 ## Чеклист: когда использовать что
+
+### useRef нужен если:
+- [ ] Нужен доступ к DOM-элементу (измерить размер, установить фокус)
+- [ ] Нужно хранить значение между рендерами БЕЗ ре-рендера
+- [ ] Нужно запомнить предыдущее значение
+- [ ] Нужен флаг/счётчик для throttle/debounce
 
 ### useCallback нужен если:
 - [ ] Функция передаётся в компонент с `React.memo`
