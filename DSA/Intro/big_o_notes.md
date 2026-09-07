@@ -118,6 +118,7 @@ $$
 
 **4. Квадратичное время $O(n^2)$ (вложенные циклы)**
 ```java
+// Given an integer array "arr" with length n,
 // Вложенные циклы
 for (int num: arr) {
     for (int num2: arr) {
@@ -133,6 +134,7 @@ $$
 
 **5. Вложенный цикл, зависящий от текущего шага внешнего**
 ```java
+// Given an integer array "arr" with length n,
 for (int i = 0; i < arr.length; i++) {
     for (int j = i; j < arr.length; j++) {
         print(arr[i] + arr[j])
